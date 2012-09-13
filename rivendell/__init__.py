@@ -1,19 +1,91 @@
 """Rivendell python module"""
 
+from . import exc
+
 import ConfigParser
 import MySQLdb
 import subprocess
 import datetime
+import re
 import os
 
 CONFIG_FILE = os.environ.get('RIVENDELL_CONFIG_FILE') or '/etc/rd.conf'
+AUDIO_ROOT = os.environ.get('RIVENDELL_AUDIO_ROOT') or '/var/snd'
 
-class LogExists(Exception):
-    """Log already exists"""
-    pass
+class Cart():
+    def add_cut(self, cut):
+        if isinstance(cut, Cut):
+            self.cuts.append(cut)
+        else:
+            raise
+    def __init__(self, db, number, title=None, artist=None):
+        self._db = db
+        self.number = number
+        self.title=title
+        self.artist=artist
 
+        self.cuts = []
 
-class Rivendell():
+    def __repr__(self):
+        return 'Cart(%d)' % (self.number)
+
+class Cut():
+    def get_gain(self):
+        c = self._db.cursor()
+        c.execute('SELECT PLAY_GAIN FROM CUTS WHERE CUT_NAME=%s', (self.cut_name,))
+        return c.fetchone()[0]
+
+    def set_gain(self, gain):
+        if not isinstance(gain, int):
+            raise TypeError("Integer gain value required.")
+                                    
+        c = self._db.cursor()
+        c.execute('UPDATE CUTS SET PLAY_GAIN=%s WHERE CUT_NAME=%s; COMMIT;', (gain, self.cut_name))
+        
+    def get_loudness(self):
+        album_pattern = re.compile('^(-?\d+\.\d) LUFS$')
+
+        result = subprocess.check_output(['loudness', 'scan', self.get_path()])
+
+        if not result:
+            raise exc.CutNotOnDisk(self.get_path()) if not os.path.isfile(self.get_path()) else exc.CutInvalid(self.cut_name)
+        lastline = result.splitlines()[-1]
+
+        return album_pattern.search(lastline).groups()[0]
+         
+        
+    def get_path(self):
+        return '/var/snd/' + os.path.basename('%s.wav' % (self.cut_name))
+
+    def __init__(self, db, cut_name, **kwargs):
+        self._db = db
+        self.cut_name = cut_name
+        self.values = kwargs
+
+    def __repr__(self):
+        return 'Cut(%s)' % (self.cut_name)
+
+class Host():
+    def get_cart(self, number):
+        cart = Cart(self._db, number)
+
+        c = self._db.cursor()
+        keys=['cart_number', 'cart_title', 'cart_artist','cut_name', 'cut_description','cut_play_gain'] 
+        print "Got %s cuts." % (c.execute('SELECT CART.number, CART.title, CART.artist, '
+                  'CUTS.cut_name, CUTS.description, CUTS.play_gain '
+                  'FROM CART INNER JOIN CUTS on CART.number = CUTS.cart_number '
+                  'WHERE CART.number = %s;', (number,)), )
+
+        if not c.rowcount:
+            raise exc.CartNotInDatabase(number) 
+        else:
+            for cut in c:
+                cart.title, cart.artist = cut[1], cut[2]
+                values = dict(zip(keys,cut))
+                cut_obj = Cut(self._db, cut[3], kwargs=values)
+                cart.add_cut(cut_obj)
+            return cart
+       
     def load_config(self, path=CONFIG_FILE):
         self.config = ConfigParser.RawConfigParser()
         try:
@@ -24,7 +96,7 @@ class Rivendell():
         self.mysql = {key:var for key, var in self.config.items('mySQL')}
 
     def connect_db(self):
-        self.db = MySQLdb.connect(host=self.mysql['hostname'],
+        self._db = MySQLdb.connect(host=self.mysql['hostname'],
                                   port=3306,
                                   user=self.mysql['loginname'],
                                   passwd=self.mysql['password'],
@@ -33,7 +105,7 @@ class Rivendell():
         
 
     def log_exists(self, logname):
-        c = self.db.cursor()
+        c = self._db.cursor()
         return True if c.execute('SHOW TABLES LIKE %s', (logname+'_LOG',)) else False
 
     def generate_tomorrow(self, service):
@@ -52,3 +124,6 @@ class Rivendell():
     def __init__(self):
         self.load_config()
         self.connect_db()
+
+   
+
