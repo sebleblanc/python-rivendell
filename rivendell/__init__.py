@@ -17,7 +17,23 @@ class Cart():
         if isinstance(cut, Cut):
             self.cuts.append(cut)
         else:
-            raise
+            raise TypeError("Must supply Cut object")
+
+    def get_loudness(self):
+        paths = [cut.get_path() for cut in self.cuts]
+        
+        cuts_pattern = re.compile(r'^\s*(\-?\d+\.\d) LUFS, (\d{6}_\d{3})\.wav$', flags=re.MULTILINE)
+        cart_pattern = re.compile(r'^\s*(\-?\d+\.\d) LUFS$')
+
+        result = subprocess.check_output(['loudness', 'scan'] + paths)
+        lines = result.splitlines()
+
+        cuts_lufs = {cut[1][-3:]: float(cut[0]) for cut in cuts_pattern.findall(result)}
+        cart_lufs = float(cart_pattern.search(lines[-1]).groups()[0])
+
+        return (cart_lufs, cuts_lufs)
+
+
     def __init__(self, db, number, title=None, artist=None):
         self._db = db
         self.number = number
