@@ -22,7 +22,9 @@ _log.add_argument('--no-log', action='store_const', dest="log",
 #argparser.add_argument('--album', action='store_true')
 argparser.add_argument('-t', '--target-loudness', default=-18, type=float, help='''desired loudness level''')
 argparser.add_argument('-D', '--delta', default=30, type=int, help='''specifies a minimum level difference
-                       before applying normalization''')
+                       before applying normalization. This is expressed in hundredths of dB (100 = 1dB)
+                       (default 30)''')
+argparser.add_argument('-M', '--maximum', default=5, type=float, help='''maximum gain to apply to original cut (default 5dB)''')
 argparser.add_argument('cartrange', nargs='+', 
     help='''a space separated list of carts. Cart ranges in the format 000000-999999
         are also supported''')
@@ -51,16 +53,20 @@ def normalize_cut(cut):
     else:
         print "Cut({}): {} LUFS".format(cut.cut_name, cut_loudness)
         if not args.dry_run:
-            if not args.hard:
-                target_gain = int( (args.target_loudness - cut_loudness)*100 )
-                delta = abs(cut_gain - target_gain)
+            target_gain = int( (args.target_loudness - cut_loudness)*100 )
+            delta = abs(cut_gain - target_gain)
 
-                if delta <= args.delta:
-                    print log("Same gain ({} dB). Not modified".format(target_gain/100.0))
-                else:
+            if delta > args.maximum:
+                log("Exceeding maximum ({} dB), will not modify".format(target_gain))  
+            elif delta <= args.delta:
+                print log("Same gain ({} dB). Not modified".format(target_gain/100.0))
+            else:
+                if not args.hard:
                     cut.set_gain( target_gain )
                     print "Cut gain was {} dB. Now {} dB".format(cut_gain/100.0, target_gain/100.0)
                     log("Modified play_gain: was {}, now {}".format(cut_gain, target_gain))
+                else:
+                    subprocess.
 
 def main():
     print args

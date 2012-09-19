@@ -28,3 +28,12 @@ class CutInvalid(CartError):
 class ToolMissing(Error):
     '''Some external tool or command is missing'''
     pass
+
+class ToolError(Error):
+    '''Some external tool did something bad and could not continue'''
+    pass
+
+class ToolWarning(Warning):
+    '''Some external tool complained about something'''
+    pass
+

@@ -81,15 +81,21 @@ class Cut():
         if len(fail.findall(result)):
             print >>sys.stderr, "Errors were encountered :"
             print >>sys.stderr, "\n".join(fail.findall(result))
+            raise exc.ToolError('sox encountered an error') 
 
         if len(warn.findall(result)):
             print >>sys.stderr, "Warnings were encountered :"
             print >>sys.stderr, "\n".join(warn.findall(result))
             print >>sys.stderr, ("Not overwriting file. Please investigate.\n" +
                     "  new file: {0}.tmp\n  old file: {0}\n".format(path) )
+            raise exc.ToolWarning('sox emitted a warning: {}'.format("\n".warn.findall(result)))
+
         else:
-            os.renames(path, os.path.dirname(path)+"/backups/"+os.path.basename(path))
-            os.rename(path+".tmp", path)
+            try:
+                os.renames(path, os.path.dirname(path)+"/backups/"+os.path.basename(path))
+                os.rename(path+".tmp", path)
+            except OSError:
+                print >>sys.stderr, "Could not overwrite file (verify permissions)"
 
     def get_loudness(self):
         album_pattern = LOUDNESS_GROUP_PATTERN
