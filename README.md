@@ -21,3 +21,8 @@ There is a utility provided with the package, named "utils/normalize.py",
 which can be used to normalize the audio level (loudness) of multiple carts in a row.
 It can either work in a destructive (edit cuts in place, currently not implemented) or non-destructive way (modify
 play_gain value in database).
+
+Notes
+---
+Right now, python-rivendell uses a hacked=together means of accessing the database. Eventually
+it will be reimplemented using some ORM engine (likely SqlAlchemy).
