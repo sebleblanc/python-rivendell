@@ -13,7 +13,8 @@ argparser = argparse.ArgumentParser(
         A cart normalizing utility for Rivendell, based on EBU R128 recommendations.
         ''',)
 argparser.add_argument('-d', '--dry-run', action='store_true', help="do not modify files or database")
-argparser.add_argument('-H', '--hard', action='store_true', help='''modify actual cuts instead of play_gain value''')
+argparser.add_argument('-H', '--hard', action='store_true', help='''modify actual cuts instead of play_gain value 
+                       (dangerous)''')
 _log = argparser.add_mutually_exclusive_group()
 _log.add_argument('--log', action='store', default="normalize.log", help='''specify a name for the log file.
     by default, logs to file "normalize.log"''')
@@ -52,21 +53,31 @@ def normalize_cut(cut):
 
     else:
         print "Cut({}): {} LUFS".format(cut.cut_name, cut_loudness)
-        if not args.dry_run:
-            target_gain = int( (args.target_loudness - cut_loudness)*100 )
-            delta = abs(cut_gain - target_gain)
 
-            if delta > args.maximum:
-                log("Exceeding maximum ({} dB), will not modify".format(target_gain))  
-            elif delta <= args.delta:
-                print log("Same gain ({} dB). Not modified".format(target_gain/100.0))
-            else:
-                if not args.hard:
+        target_gain = int( (args.target_loudness - cut_loudness)*100 )
+        delta = abs(cut_gain - target_gain)
+
+        if delta > args.maximum:
+            log("Exceeding maximum ({} dB), will not modify".format(target_gain))  
+        elif delta <= args.delta:
+            print log("Same gain ({} dB). Not modified".format(target_gain/100.0))
+        else:
+            if not args.hard:
+                if not args.dry_run:
                     cut.set_gain( target_gain )
                     print "Cut gain was {} dB. Now {} dB".format(cut_gain/100.0, target_gain/100.0)
                     log("Modified play_gain: was {}, now {}".format(cut_gain, target_gain))
                 else:
-                    subprocess.
+                    print "[DRY-RUN] Cut gain was {} dB. Now {} dB".format(cut_gain/100.0, target_gain/100.0)
+                    log("[DRY-RUN] Modified play_gain: was {}, now {}".format(cut_gain, target_gain))
+
+            elif not args.dry_run: # this piece executes only when args.hard==T and args.dry_run==F
+                try:
+                    cut.amplify(target_gain)
+                except ToolError as e:
+                    print log('ERROR: error while invoking "amplify" on {}'.format(cut.cut_name))
+                except ToolWarning as e:
+                    print log('WARNING: warning while invoking "amplify" on {}'.format(cut.cut_name))
 
 def main():
     print args
