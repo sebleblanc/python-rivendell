@@ -71,11 +71,31 @@ class Cut():
                                     
         c = self._db.cursor()
         c.execute('UPDATE CUTS SET PLAY_GAIN=%s WHERE CUT_NAME=%s; COMMIT;', (gain, self.cut_name))
-        
+
+    def amplify(self, gain):
+        fail = re.compile(r'^sox FAIL .*?$', re.MULTILINE)
+        warn = re.compile(r'^sox WARN .*?$', re.MULTILINE)
+        path = self.get_path()
+        result = subprocess.check_output(['sox', path, path+".tmp", 'gain', '{:+.3f}'.format(gain)], stderr=subprocess.STDOUT)
+
+        if len(fail.findall(result)):
+            print >>sys.stderr, "Errors were encountered :"
+            print >>sys.stderr, "\n".join(fail.findall(result))
+
+        if len(warn.findall(result)):
+            print >>sys.stderr, "Warnings were encountered :"
+            print >>sys.stderr, "\n".join(warn.findall(result))
+            print >>sys.stderr, ("Not overwriting file. Please investigate.\n" +
+                    "  new file: {0}.tmp\n  old file: {0}\n".format(path) )
+        else:
+            os.renames(path, os.path.dirname(path)+"/backups/"+os.path.basename(path))
+            os.rename(path+".tmp", path)
+
     def get_loudness(self):
         album_pattern = LOUDNESS_GROUP_PATTERN
-
-        result = subprocess.check_output(['loudness', 'scan', self.get_path()])
+        
+        with open('/dev/null', 'w') as devnull:
+            result = subprocess.check_output(['loudness', 'scan', self.get_path()], stderr=devnull)
 
         if not result:
             raise exc.CutNotOnDisk(self.get_path()) if not os.path.isfile(self.get_path()) else exc.CutInvalid(self.cut_name)
