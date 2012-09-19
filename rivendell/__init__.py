@@ -12,6 +12,12 @@ import os
 CONFIG_FILE = os.environ.get('RIVENDELL_CONFIG_FILE') or '/etc/rd.conf'
 AUDIO_ROOT = os.environ.get('RIVENDELL_AUDIO_ROOT') or '/var/snd'
 
+LOUDNESS_SINGLE_PATTERN = re.compile(r'^\s*(\-?\d+\.\d) LUFS, (\d{6}_\d{3})\.wav$', flags=re.MULTILINE)
+LOUDNESS_GROUP_PATTERN = re.compile(r'^\s*(\-?\d+\.\d) LUFS$')
+
+
+
+
 class Cart():
     def add_cut(self, cut):
         if isinstance(cut, Cut):
@@ -22,8 +28,8 @@ class Cart():
     def get_loudness(self):
         paths = [cut.get_path() for cut in self.cuts]
         
-        cuts_pattern = re.compile(r'^\s*(\-?\d+\.\d) LUFS, (\d{6}_\d{3})\.wav$', flags=re.MULTILINE)
-        cart_pattern = re.compile(r'^\s*(\-?\d+\.\d) LUFS$')
+        cuts_pattern = LOUDNESS_SINGLE_PATTERN
+        cart_pattern = LOUDNESS_GROUP_PATTERN
 
         result = subprocess.check_output(['loudness', 'scan'] + paths)
         lines = result.splitlines()
@@ -33,6 +39,14 @@ class Cart():
 
         return (cart_lufs, cuts_lufs)
 
+    def get_cuts(self):
+        c = self._db.cursor()
+        c.execute('SELECT cut_name, play_gain '
+                  'FROM CUTS WHERE cart_number=%s ', (self.number,))
+
+        for cut in c:
+            cut_obj = Cut(self._db, cut[0], kwargs=cut)
+            self.add_cut(cut_obj)
 
     def __init__(self, db, number, title=None, artist=None):
         self._db = db
@@ -53,7 +67,7 @@ class Cut():
 
     def set_gain(self, gain):
         if not isinstance(gain, int):
-            raise TypeError("Integer gain value required.")
+            raise TypeError("Integer play gain value required.")
                                     
         c = self._db.cursor()
         c.execute('UPDATE CUTS SET PLAY_GAIN=%s WHERE CUT_NAME=%s; COMMIT;', (gain, self.cut_name))
@@ -69,7 +83,6 @@ class Cut():
 
         return album_pattern.search(lastline).groups()[0]
          
-        
     def get_path(self):
         return '/var/snd/' + os.path.basename('%s.wav' % (self.cut_name))
 
@@ -80,6 +93,31 @@ class Cut():
 
     def __repr__(self):
         return 'Cut(%s)' % (self.cut_name)
+
+class CartRange():
+    def __init__(self, db, from_number, to_number):
+        self._db = db
+        self.from_number = from_number
+        self.to_number = to_number
+        self.carts = []
+
+        c = db.cursor()
+        c.execute('SELECT number, title, artist '
+                  'FROM CART WHERE number >= %s AND number <= %s', (from_number, to_number))
+
+#        c.execute('SELECT CART.number, CART.artist, CART.title, '
+#                  'CUTS.cut_name, CUTS.play_gain '
+#                  'FROM CART JOIN CUTS ON CUTS.cart_number=CART.number ' 
+#                  'WHERE CART.number >= %s AND CART.number <= %s ', (from_number,to_number))
+
+        for result in c:
+            cart = Cart(db, result[0], result[1], result[2])
+            self.carts.append(cart)
+
+
+
+        
+
 
 class Host():
     def get_cart(self, number):
