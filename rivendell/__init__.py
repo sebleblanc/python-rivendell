@@ -73,7 +73,7 @@ class Cut():
         c.execute('UPDATE CUTS SET PLAY_GAIN=%s WHERE CUT_NAME=%s; COMMIT;', (gain, self.cut_name))
         
     def get_loudness(self):
-        album_pattern = re.compile('^(-?\d+\.\d) LUFS$')
+        album_pattern = LOUDNESS_GROUP_PATTERN
 
         result = subprocess.check_output(['loudness', 'scan', self.get_path()])
 
