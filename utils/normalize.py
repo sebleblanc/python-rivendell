@@ -12,7 +12,7 @@ argparser = argparse.ArgumentParser(
     description='''
         A cart normalizing utility for Rivendell, based on EBU R128 recommendations.
         ''',)
-argparser.add_argument('-d', '--dry-run', action='store_true', help="do not modify files or database")
+argparser.add_argument('-d', '--dry-run', dest='dry_run', action='store_true', help="do not modify files or database")
 argparser.add_argument('-H', '--hard', action='store_true', help='''modify actual cuts instead of play_gain value 
                        (dangerous)''')
 _log = argparser.add_mutually_exclusive_group()
