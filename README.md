@@ -19,5 +19,5 @@ Utilities
 
 There is a utility provided with the package, named "utils/normalize.py", 
 which can be used to normalize the audio level (loudness) of multiple carts in a row.
-It can either work in a destructive (edit cuts in place) or non-destructive way (modify
+It can either work in a destructive (edit cuts in place, currently not implemented) or non-destructive way (modify
 play_gain value in database).
