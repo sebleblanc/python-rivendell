@@ -1,6 +1,9 @@
 #!/usr/bin/env python2
 
-import rivendell
+try:
+    import rivendell
+except ImportError as e:
+    from .. import rivendell
 
 import argparse
 import datetime
