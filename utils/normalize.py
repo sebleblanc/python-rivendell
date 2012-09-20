@@ -69,7 +69,7 @@ def normalize_cut(cut):
                     log("Modified play_gain: was {}, now {}".format(cut_gain, target_gain))
                 else:
                     print "[DRY-RUN] Cut gain was {} dB. Now {} dB".format(cut_gain/100.0, target_gain/100.0)
-                    log("[DRY-RUN] Modified play_gain: was {}, now {}".format(cut_gain, target_gain))
+                    log("[DRY-RUN] Modified play_gain: was {}, now {}".format(cut_gain, target_gain))
 
             elif not args.dry_run: # this piece executes only when args.hard==T and args.dry_run==F
                 try:
